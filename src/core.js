@@ -329,3 +329,16 @@ async function copiar(texto, toast, msg) {
   try { await navigator.clipboard.writeText(texto); toast(msg || "Copiado."); }
   catch (e) { toast("Não foi possível copiar. Selecione o texto e copie manualmente: " + texto); }
 }
+
+/* ---------- administrador: trocar de visão na mesma conta ---------- */
+function TrocarVisao() {
+  const { user, acao, toast } = useApp();
+  const [busy, setBusy] = useState(null);
+  if (!user || !user.podeAdmin) return null;
+  const ops = [["admin", "Admin", "shield"], ["tutor", "Tutor", "user"], ["vet", "Veterinário", "vet"]];
+  const trocar = async (t) => { setBusy(t); try { await acao("trocarPapel", t); toast(`Visão de ${ops.find((o) => o[0] === t)[1].toLowerCase()}.`); } catch (e) { toast(e.message); } setBusy(null); };
+  return html`<div className="card white stack-12">
+    <div><h3>Trocar de visão</h3><p className="small muted">Como administrador, você usa a mesma conta como tutor, veterinário ou na administração.</p></div>
+    <${Seg} label="Visão" value=${user.tipo} onChange=${(v) => !busy && v !== user.tipo && trocar(v)} options=${ops.map(([v, t, icon]) => ({ v, t, icon }))} />
+  </div>`;
+}

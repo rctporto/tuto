@@ -92,6 +92,7 @@ function App() {
     const { data } = await sb.auth.getSession();
     await recarregar(data.session);
     if (nome === "cadastrarPet" && r && r.id) mut((d) => { d.session.petId = r.id; });
+    if (nome === "trocarPapel") setStack([{ r: homeDe(stRef.current), p: {} }]);
     return r;
   }
 

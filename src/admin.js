@@ -83,6 +83,7 @@ function APerfil() {
     <${Title} t="Meu perfil" sub="Conta de administrador." />
     <div className="card row" style=${{ flexDirection: "row" }}><span className="ic-tile round" style=${{ width: 72, height: 72 }}><${I} n="shieldC" s=${36} /></span><div><h2>${user.nome}</h2><p className="muted small">${user.email}</p></div></div>
     <${Note} icon="info">O administrador aprova ou recusa cadastros de tutores e veterinários. Não tem acesso a prontuários.<//>
+    <${TrocarVisao} />
     <${Btn} v="secondary" icon="logout" onClick=${() => acao("sair").catch(() => {})}>Sair da conta<//>
   </div>`;
 }

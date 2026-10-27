@@ -584,6 +584,19 @@ async function copiar(texto, toast, msg) {
   catch (e) { toast("Não foi possível copiar. Selecione o texto e copie manualmente: " + texto); }
 }
 
+/* ---------- administrador: trocar de visão na mesma conta ---------- */
+function TrocarVisao() {
+  const { user, acao, toast } = useApp();
+  const [busy, setBusy] = useState(null);
+  if (!user || !user.podeAdmin) return null;
+  const ops = [["admin", "Admin", "shield"], ["tutor", "Tutor", "user"], ["vet", "Veterinário", "vet"]];
+  const trocar = async (t) => { setBusy(t); try { await acao("trocarPapel", t); toast(`Visão de ${ops.find((o) => o[0] === t)[1].toLowerCase()}.`); } catch (e) { toast(e.message); } setBusy(null); };
+  return html`<div className="card white stack-12">
+    <div><h3>Trocar de visão</h3><p className="small muted">Como administrador, você usa a mesma conta como tutor, veterinário ou na administração.</p></div>
+    <${Seg} label="Visão" value=${user.tipo} onChange=${(v) => !busy && v !== user.tipo && trocar(v)} options=${ops.map(([v, t, icon]) => ({ v, t, icon }))} />
+  </div>`;
+}
+
 /* ---------- operações (simulam o servidor: validam sessão, vínculo e autoria) ---------- */
 function notif(d, para, tipo, extra) { d.notifs.push({ id: uid("n"), para, tipo, data: agoraISO(), lida: false, ...extra }); }
 function avisarAdmins(d, kind, ref) { d.users.filter((u) => u.tipo === "admin").forEach((a) => notif(d, a.id, "pendencia", { kind, ref })); }
@@ -822,6 +835,7 @@ const SRV = {
   registrarCuidado: (f) => rpc("registrar_cuidado", { f }),
   novaNota: (f) => rpc("nova_nota", { f }),
   lerNotifs: () => rpc("ler_notifs"),
+  trocarPapel: (tipo) => rpc("trocar_papel", { p_tipo: tipo }),
   prefs: (k, v) => rpc("salvar_pref", { p_chave: k, p_valor: v }),
 };
 
@@ -1739,6 +1753,7 @@ function Perfil() {
     <${Row} icon="users" title="Veterinários autorizados" sub="Veja e gerencie os veterinários com acesso." onClick=${() => go("acessos")} />
     <${Row} icon="shield" title="Privacidade" sub="Controle seus dados e permissões." onClick=${() => go("privacidade")} />
     <${Row} icon="help" title="Ajuda" sub="Dúvidas e suporte." onClick=${() => go("ajuda")} />
+    <${TrocarVisao} />
     <${Btn} v="secondary" icon="logout" onClick=${() => acao("sair").catch(() => {})}>Sair da conta<//>
   </div>`;
 }
@@ -1915,6 +1930,7 @@ function VPerfil() {
     <${Row} icon="user" title="Dados da conta" sub="Nome, e-mail e registro." onClick=${() => go("conta")} />
     <${Row} icon="bell" title="Notificações" sub="Acessos, anotações e publicações." onClick=${() => go("vNotifs")} />
     <${Row} icon="shield" title="Como funciona o acesso" sub="Autorização por pet e autoria por registro." onClick=${() => go("privacidade")} />
+    <${TrocarVisao} />
     <${Btn} v="secondary" icon="logout" onClick=${() => acao("sair").catch(() => {})}>Sair da conta<//>
   </div>`;
 }
@@ -2317,6 +2333,7 @@ function APerfil() {
     <${Title} t="Meu perfil" sub="Conta de administrador." />
     <div className="card row" style=${{ flexDirection: "row" }}><span className="ic-tile round" style=${{ width: 72, height: 72 }}><${I} n="shieldC" s=${36} /></span><div><h2>${user.nome}</h2><p className="muted small">${user.email}</p></div></div>
     <${Note} icon="info">O administrador aprova ou recusa cadastros de tutores e veterinários. Não tem acesso a prontuários.<//>
+    <${TrocarVisao} />
     <${Btn} v="secondary" icon="logout" onClick=${() => acao("sair").catch(() => {})}>Sair da conta<//>
   </div>`;
 }
@@ -2440,6 +2457,7 @@ function App() {
     const { data } = await sb.auth.getSession();
     await recarregar(data.session);
     if (nome === "cadastrarPet" && r && r.id) mut((d) => { d.session.petId = r.id; });
+    if (nome === "trocarPapel") setStack([{ r: homeDe(stRef.current), p: {} }]);
     return r;
   }
 

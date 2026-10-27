@@ -68,5 +68,6 @@ const SRV = {
   registrarCuidado: (f) => rpc("registrar_cuidado", { f }),
   novaNota: (f) => rpc("nova_nota", { f }),
   lerNotifs: () => rpc("ler_notifs"),
+  trocarPapel: (tipo) => rpc("trocar_papel", { p_tipo: tipo }),
   prefs: (k, v) => rpc("salvar_pref", { p_chave: k, p_valor: v }),
 };

@@ -42,10 +42,10 @@ As tabelas do banco ficam fechadas. O site só fala com o banco por funções (`
 Crie sua conta pelo próprio site (Cadastrar tutor), confirme o e-mail e depois rode no **SQL Editor**, trocando o e-mail:
 
 ```sql
-update public.perfis set tipo = 'admin', aprovacao = 'aprovado' where email = 'seu@email.com';
+update public.perfis set admin = true, tipo = 'admin', aprovacao = 'aprovado' where email = 'seu@email.com';
 ```
 
-A partir daí, as novas contas aparecem em **Pendências** para esse administrador.
+A partir daí, as novas contas aparecem em **Pendências** para esse administrador. No **Perfil**, o administrador pode trocar de visão entre Administração, Tutor e Veterinário, usando a mesma conta.
 
 ### 3. Firebase Hosting (Nório)
 1. No console do Firebase do projeto da Nório: **Hosting → Adicionar outro site** → `tutopet`.

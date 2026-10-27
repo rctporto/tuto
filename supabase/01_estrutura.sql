@@ -36,6 +36,10 @@ create table if not exists public.perfis (
   prefs          jsonb not null default '{"acessos":true,"orientacoes":true,"rotina":true}'::jsonb,
   criado_em      timestamptz not null default now()
 );
+-- Administrador: pode aprovar cadastros e trocar de visão (tutor, veterinário, administração).
+-- "tipo" passa a ser a visão em uso.
+alter table public.perfis add column if not exists admin boolean not null default false;
+update public.perfis set admin = true where tipo = 'admin' and not admin;
 
 -- Pets, sempre vinculados à conta de um tutor
 create table if not exists public.pets (
@@ -213,7 +217,7 @@ language sql stable security definer set search_path = public as $$
     'criadoEm', u.criado_em
   )) || case when completo then jsonb_strip_nulls(jsonb_build_object(
     'email', u.email, 'motivoRecusa', u.motivo_recusa, 'analisadoEm', u.analisado_em,
-    'prefs', u.prefs, 'documento', u.documento,
+    'prefs', u.prefs, 'documento', u.documento, 'podeAdmin', case when u.admin then true end,
     'emailConfirmado', (select au.email_confirmed_at is not null from auth.users au where au.id = u.id)
   )) else '{}'::jsonb end;
 $$;
@@ -293,7 +297,7 @@ begin
           case when t = 'vet' then 'Médico(a)-veterinário(a)' end,
           case when t = 'vet' and jsonb_typeof(m->'documento') = 'object' then m->'documento' end)
   on conflict (id) do nothing;
-  for a in select id from perfis where tipo = 'admin' loop
+  for a in select id from perfis where admin loop
     perform _notif(a.id, 'pendencia', new.id::text, null, t);
   end loop;
   return new;
@@ -399,10 +403,10 @@ create or replace function public.decidir_cadastro(p_id uuid, p_aprovar boolean,
 language plpgsql security definer set search_path = public as $$
 declare adm perfis := _eu(); u perfis; m text := nullif(trim(coalesce(p_motivo, '')), '');
 begin
-  if adm.tipo <> 'admin' then perform _erro('Somente administradores aprovam cadastros.'); end if;
+  if not adm.admin then perform _erro('Somente administradores aprovam cadastros.'); end if;
   if not p_aprovar and m is null then perform _erro('Explique o motivo da recusa. Ele será mostrado a quem fez o cadastro.'); end if;
   select * into u from perfis where id = p_id for update;
-  if u.id is null or u.tipo = 'admin' then perform _erro('Conta não encontrada.'); end if;
+  if u.id is null or u.admin then perform _erro('Conta não encontrada.'); end if;
   if u.aprovacao <> 'pendente' then perform _erro('Este cadastro já foi analisado.'); end if;
   update perfis set aprovacao = case when p_aprovar then 'aprovado' else 'recusado' end,
          motivo_recusa = case when p_aprovar then null else m end, analisado_em = now(), analisado_por = adm.id
@@ -581,6 +585,18 @@ begin
   return _j_nota(n);
 end $$;
 
+-- Administrador troca a visão da própria conta
+create or replace function public.trocar_papel(p_tipo text) returns void
+language plpgsql security definer set search_path = public as $$
+declare eu perfis := _eu();
+begin
+  if not eu.admin then perform _erro('Somente administradores trocam de visão.'); end if;
+  if p_tipo not in ('tutor', 'vet', 'admin') then perform _erro('Visão desconhecida.'); end if;
+  update perfis set tipo = p_tipo, aprovacao = 'aprovado',
+         titulo = case when p_tipo = 'vet' then coalesce(titulo, 'Médico(a)-veterinário(a)') else titulo end
+   where id = eu.id;
+end $$;
+
 create or replace function public.ler_notifs() returns void
 language sql security definer set search_path = public as $$
   update notifs set lida = true where para = auth.uid() and not lida;
@@ -605,7 +621,7 @@ begin
              '_erro','_eu','_notif','_vet_pode_ler','_pode_ler_pet','_novo_codigo','_j_user','_j_pet','_j_sol','_j_vinc',
              '_j_reg','_j_pet_min','_j_nota','_j_cuid','_j_notif','_nova_conta','estado','cadastrar_pet','atualizar_foto','decidir_cadastro',
              'buscar_codigo','solicitar','cancelar_solicitacao','decidir','revogar','salvar_rascunho','publicar',
-             'descartar_rascunho','nova_versao','registrar_cuidado','nova_nota','ler_notifs','salvar_pref') loop
+             'descartar_rascunho','nova_versao','registrar_cuidado','nova_nota','trocar_papel','ler_notifs','salvar_pref') loop
     execute format('revoke all on function %s from public, anon, authenticated', f.sig);
     if left(f.proname, 1) <> '_' then
       execute format('grant execute on function %s to authenticated', f.sig);

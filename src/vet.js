@@ -81,6 +81,7 @@ function VPerfil() {
     <${Row} icon="user" title="Dados da conta" sub="Nome, e-mail e registro." onClick=${() => go("conta")} />
     <${Row} icon="bell" title="Notificações" sub="Acessos, anotações e publicações." onClick=${() => go("vNotifs")} />
     <${Row} icon="shield" title="Como funciona o acesso" sub="Autorização por pet e autoria por registro." onClick=${() => go("privacidade")} />
+    <${TrocarVisao} />
     <${Btn} v="secondary" icon="logout" onClick=${() => acao("sair").catch(() => {})}>Sair da conta<//>
   </div>`;
 }

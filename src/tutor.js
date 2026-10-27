@@ -690,6 +690,7 @@ function Perfil() {
     <${Row} icon="users" title="Veterinários autorizados" sub="Veja e gerencie os veterinários com acesso." onClick=${() => go("acessos")} />
     <${Row} icon="shield" title="Privacidade" sub="Controle seus dados e permissões." onClick=${() => go("privacidade")} />
     <${Row} icon="help" title="Ajuda" sub="Dúvidas e suporte." onClick=${() => go("ajuda")} />
+    <${TrocarVisao} />
     <${Btn} v="secondary" icon="logout" onClick=${() => acao("sair").catch(() => {})}>Sair da conta<//>
   </div>`;
 }
