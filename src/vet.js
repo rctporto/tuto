@@ -69,7 +69,7 @@ function VSolicitacoes() {
   </div>`;
 }
 function VPerfil() {
-  const { user, go, mut } = useApp();
+  const { user, go, mut, acao } = useApp();
   const lib = user.verificacao === "liberado";
   return html`<div className="scr">
     <${Top} logo="left" bell />
@@ -81,20 +81,20 @@ function VPerfil() {
     <${Row} icon="user" title="Dados da conta" sub="Nome, e-mail e registro." onClick=${() => go("conta")} />
     <${Row} icon="bell" title="Notificações" sub="Acessos, anotações e publicações." onClick=${() => go("vNotifs")} />
     <${Row} icon="shield" title="Como funciona o acesso" sub="Autorização por pet e autoria por registro." onClick=${() => go("privacidade")} />
-    <${Btn} v="secondary" icon="logout" onClick=${() => mut((d) => A.sair(d))}>Sair da conta<//>
+    <${Btn} v="secondary" icon="logout" onClick=${() => acao("sair").catch(() => {})}>Sair da conta<//>
   </div>`;
 }
 
 /* ---------- 24 Encontrar pet ---------- */
 function Encontrar() {
-  const { st, user, mut, go, replace } = useApp();
+  const { st, user, mut, go, replace, acao } = useApp();
   const [modo, setModo] = useState("qr"); const [num, setNum] = useState(""); const [err, setErr] = useState("");
   const [busy, run] = useBusy(); const [falhas, setFalhas] = useState(0); const [ate, setAte] = useState(0);
   if (user.verificacao !== "liberado") return html`<${Verificacao} />`;
   const abrir = (codigo) => run(async () => {
     if (Date.now() < ate) { setErr("Muitas tentativas seguidas. Aguarde alguns segundos e tente de novo."); return; }
     try {
-      const r = mut((d) => A.buscarCodigo(d, codigo));
+      const r = await acao("buscarCodigo", codigo);
       if (!r) { const f = falhas + 1; setFalhas(f); if (f >= 5) { setAte(Date.now() + 30000); setFalhas(0); } setErr("Não encontramos um pet com esse número. Confira os 8 dígitos com o tutor."); return; }
       setErr(""); setFalhas(0);
       if (vetPodeLer(st, user.id, r.petId)) go("prontuario", { petId: r.petId });
@@ -109,8 +109,8 @@ function Encontrar() {
     ${modo === "qr" ? html`<div className="scanner">
         <span className="corner c1"></span><span className="corner c2"></span><span className="corner c3"></span><span className="corner c4"></span>
         <${I} n="scan" s=${54} sw=${1.6} />
-        <p style=${{ maxWidth: 230 }}>A câmera não está disponível neste protótipo. Simule a leitura de um QR de demonstração:</p>
-        <div className="chips" style=${{ justifyContent: "center" }}>${demo.map((p) => html`<button key=${p.id} className="chip" style=${{ color: "var(--tinta)" }} onClick=${() => abrir(p.codigo)} disabled=${busy}><${I} n="qr" s=${18} />QR ${fmtCod(p.codigo)}</button>`)}</div>
+        ${SERVIDOR ? html`<p style=${{ maxWidth: 240 }}>A leitura pela câmera chega na próxima versão. Por enquanto, digite o número que aparece abaixo do QR do pet.</p>` : html`<p style=${{ maxWidth: 230 }}>A câmera não está disponível neste protótipo. Simule a leitura de um QR de demonstração:</p>`}
+        ${SERVIDOR ? null : html`<div className="chips" style=${{ justifyContent: "center" }}>${demo.map((p) => html`<button key=${p.id} className="chip" style=${{ color: "var(--tinta)" }} onClick=${() => abrir(p.codigo)} disabled=${busy}><${I} n="qr" s=${18} />QR ${fmtCod(p.codigo)}</button>`)}</div>`}
       </div>
       <div className="or">ou</div>` : null}
     <form className="stack-12" onSubmit=${(e) => { e.preventDefault(); if (num.replace(/\D/g, "").length !== 8) { setErr("O número do pet tem 8 dígitos."); return; } abrir(num); }} noValidate>
@@ -123,12 +123,12 @@ function Encontrar() {
 
 /* ---------- 25 Solicitar acesso ---------- */
 function Solicitar({ p }) {
-  const { st, user, mut, toast, replace, goBack } = useApp();
+  const { st, user, mut, toast, replace, goBack, acao } = useApp();
   const [motivo, setMotivo] = useState("Acompanhamento veterinário"); const [busy, run] = useBusy(); const [err, setErr] = useState("");
   const pet = petById(st, p.petId);
   if (!pet) return html`<${SemAcessoGenerico} />`;
   if (vetPodeLer(st, user.id, pet.id)) return html`<${Prontuario} p=${{ petId: pet.id }} />`;
-  const enviar = () => run(async () => { try { const s = mut((d) => A.solicitar(d, pet.id, motivo)); toast("Solicitação enviada ao tutor."); replace("aguardando", { sid: s.id }); } catch (er) { setErr(er.message); } });
+  const enviar = () => run(async () => { try { const s = await acao("solicitar", pet.id, motivo); toast("Solicitação enviada ao tutor."); replace("aguardando", { sid: s.id }); } catch (er) { setErr(er.message); } });
   return html`<div className="scr">
     <${Top} back logo="left" right=${html`<span></span>`} />
     <${Title} t="Solicitar acesso" sub="Envie uma solicitação ao tutor para acessar os dados do pet." />
@@ -152,7 +152,7 @@ function Solicitar({ p }) {
 
 /* ---------- 26 Aguardando ---------- */
 function Aguardando({ p }) {
-  const { st, user, mut, toast, tab, go } = useApp();
+  const { st, user, mut, toast, tab, go, acao } = useApp();
   const [busy, run] = useBusy();
   const s = st.solicitacoes.find((x) => x.id === p.sid && x.vetId === user.id);
   if (!s) return html`<${SemAcessoGenerico} />`;
@@ -168,7 +168,7 @@ function Aguardando({ p }) {
       <div className="grow stack" style=${{ gap: 6 }}><h3 className="num" style=${{ fontSize: 22 }}>Pet ${fmtCod(pet.codigo)}</h3><${Badge} t=${pend ? "warn" : s.status === "recusada" ? "err" : "gray"} icon=${pend ? "clock" : "slash"}>${pend ? "Aguardando tutor" : s.status === "recusada" ? "Recusada pelo tutor" : "Cancelada"}<//></div>
     </div>
     <div className="card center" style=${{ alignItems: "center" }}><${Tile} icon="lock" round /><h3>Prontuário indisponível</h3><p className="small muted">O acesso aos dados só será liberado após autorização do tutor.</p></div>
-    ${pend ? html`<${Btn} v="secondary" busy=${busy} onClick=${() => run(async () => { try { mut((d) => A.cancelarSolicitacao(d, s.id)); toast("Solicitação cancelada."); } catch (er) { toast(er.message); } })}>Cancelar solicitação<//>`
+    ${pend ? html`<${Btn} v="secondary" busy=${busy} onClick=${() => run(async () => { try { await acao("cancelarSolicitacao", s.id); toast("Solicitação cancelada."); } catch (er) { toast(er.message); } })}>Cancelar solicitação<//>`
       : html`<${Btn} v="secondary" onClick=${() => go("solicitar", { petId: pet.id })}>Solicitar novo acesso<//>`}
     <button className="btn btn-link" style=${{ alignSelf: "center", textDecoration: "underline" }} onClick=${() => tab("vInicio")}>Voltar ao início</button>
   </div>`;
@@ -267,7 +267,7 @@ const CAMPOS = {
   avaliacao: [],
 };
 function NovaOrientacao({ p }) {
-  const { st, user, mut, toast, go, goBack, replace } = useApp();
+  const { st, user, mut, toast, go, goBack, replace, acao } = useApp();
   const draft = p.rid && st.registros.find((r) => r.id === p.rid && r.autorId === user.id && r.status === "rascunho");
   const [f, setF] = useState(() => draft ? { tipo: draft.tipo, titulo: draft.titulo, retorno: draft.retorno || "", anexo: draft.anexo || null, conteudo: { ...draft.rascunho } } : { tipo: "tratamento", titulo: "", retorno: "", anexo: null, conteudo: { orientacoes: "" } });
   const [err, setErr] = useState({}); const [busy, run] = useBusy(); const [qual, setQual] = useState(""); const fref = useRef(null);
@@ -276,7 +276,7 @@ function NovaOrientacao({ p }) {
   const setC = (k) => (v) => { setF({ ...f, conteudo: { ...f.conteudo, [k]: v } }); setErr({ ...err, [k]: "" }); };
   const validar = () => { const x = {}; if (!f.titulo.trim()) x.titulo = "Dê um nome à orientação."; if (f.tipo === "receita" ? !(f.conteudo.prescricao || "").trim() : !(f.conteudo.orientacoes || "").trim()) x[f.tipo === "receita" ? "prescricao" : "orientacoes"] = "Preencha este campo para o tutor entender o cuidado."; setErr(x); return !Object.keys(x).length; };
   const salvar = (rev) => { if (rev && !validar()) return; setQual(rev ? "rev" : "ras"); run(async () => {
-    try { const r = mut((d) => A.salvarRascunho(d, { id: draft && draft.id, petId: pet.id, tipo: f.tipo, titulo: f.titulo, retorno: f.retorno, anexo: f.anexo, conteudo: f.conteudo })); if (rev) replace("revisar", { rid: r.id }); else { toast("Rascunho salvo. Só você pode vê-lo."); goBack(); } }
+    try { const r = await acao("salvarRascunho", { id: draft && draft.id, petId: pet.id, tipo: f.tipo, titulo: f.titulo, retorno: f.retorno, anexo: f.anexo, conteudo: f.conteudo }); if (rev) replace("revisar", { rid: r.id }); else { toast("Rascunho salvo. Só você pode vê-lo."); goBack(); } }
     catch (er) { setErr({ geral: er.message }); }
   }); };
   return html`<div className="scr">
@@ -303,7 +303,7 @@ function NovaOrientacao({ p }) {
 
 /* ---------- 30 Revisar e publicar ---------- */
 function Revisar({ p }) {
-  const { st, user, mut, toast, replace, go } = useApp();
+  const { st, user, mut, toast, replace, go, acao } = useApp();
   const r = st.registros.find((x) => x.id === p.rid && x.autorId === user.id);
   const [chk, setChk] = useState({ pet: false, texto: false, anexos: false }); const [notif, setNotif] = useState(true);
   const [busy, run] = useBusy(); const [err, setErr] = useState("");
@@ -332,7 +332,7 @@ function Revisar({ p }) {
     <div className="card green row" style=${{ flexDirection: "row" }}><${Tile} icon="bell" g sm /><label htmlFor="rv-not" className="grow"><p style=${{ fontWeight: 800 }}>Notificar tutor</p><p className="small">${notif ? "O tutor será avisado quando a orientação for publicada." : "O tutor verá a orientação ao abrir o app, sem aviso."}</p></label><${Toggle} id="rv-not" on=${notif} onChange=${setNotif} label="Notificar tutor" /></div>
     ${err ? html`<div className="formerr" role="alert">${err}</div>` : null}
     <div className="btns">
-      <${Btn} busy=${busy} disabled=${!ok} onClick=${() => run(async () => { try { mut((d) => A.publicar(d, r.id, notif)); toast(notif ? "Orientação publicada. O tutor foi avisado." : "Orientação publicada."); replace("prontuario", { petId: pet.id }); } catch (er) { setErr(er.message); } })}>Publicar orientação<//>
+      <${Btn} busy=${busy} disabled=${!ok} onClick=${() => run(async () => { try { await acao("publicar", r.id, notif); toast(notif ? "Orientação publicada. O tutor foi avisado." : "Orientação publicada."); replace("prontuario", { petId: pet.id }); } catch (er) { setErr(er.message); } })}>Publicar orientação<//>
       ${ok ? null : html`<p className="meta center">Marque os três itens para publicar.</p>`}
       <${Btn} v="secondary" onClick=${() => replace("novaOrientacao", { petId: pet.id, rid: r.id })}>Voltar e ajustar<//>
     </div>
@@ -341,7 +341,7 @@ function Revisar({ p }) {
 
 /* ---------- 31 Editar registro próprio ---------- */
 function Editar({ p }) {
-  const { st, user, mut, toast, goBack, go } = useApp();
+  const { st, user, mut, toast, goBack, go, acao } = useApp();
   const r = st.registros.find((x) => x.id === p.rid);
   const [base] = useState(() => (r ? atual(r).n : 0));
   const [c, setC] = useState(() => (r ? { ...atual(r).conteudo } : {}));
@@ -354,7 +354,7 @@ function Editar({ p }) {
   const salvar = () => {
     const x = {}; if (!motivo.trim()) x.motivo = "Explique o motivo da alteração."; if (JSON.stringify(c) === JSON.stringify(atual(r).conteudo)) x.geral = "Nada foi alterado no conteúdo.";
     setErr(x); if (Object.keys(x).length) return;
-    run(async () => { try { mut((d) => A.novaVersao(d, r.id, base, c, motivo)); toast(`Versão ${base + 1} salva. A versão ${base} foi preservada.`); goBack(); } catch (er) { setErr({ geral: er.message }); } });
+    run(async () => { try { await acao("novaVersao", r.id, base, c, motivo); toast(`Versão ${base + 1} salva. A versão ${base} foi preservada.`); goBack(); } catch (er) { setErr({ geral: er.message }); } });
   };
   return html`<div className="scr">
     <${Top} back right=${html`<span></span>`} />

@@ -2,7 +2,7 @@
 import base64, pathlib
 R = pathlib.Path(__file__).parent
 uri = lambda p: "data:image/png;base64," + base64.b64encode((R / p).read_bytes()).decode()
-ordem = ["core", "actions", "auth", "tutor", "vet", "admin", "app"]
+ordem = ["core", "actions", "servidor", "auth", "tutor", "vet", "admin", "app"]
 js = "\n".join((R / "src" / f"{n}.js").read_text() for n in ordem)
 js = js.replace("__LOGO__", uri("assets/logo.png")).replace("__SYM__", uri("assets/sym.png"))
 head = (R / "src" / "head.html").read_text()
@@ -18,6 +18,8 @@ html = f'''<!doctype html>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
 <script>
 {js}
 </script>

@@ -1,3 +1,5 @@
+// O painel de demonstração só aparece com ?demo no endereço.
+const DEMO = (() => { try { return new URLSearchParams(location.search).has("demo"); } catch (e) { return false; } })();
 const { useState, useEffect, useRef, createContext, useContext } = React;
 const html = htm.bind(React.createElement);
 const LOGO = "__LOGO__";

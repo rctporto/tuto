@@ -112,7 +112,7 @@ function RegCard({ r, compact }) {
 
 /* ---------- 06 Cadastrar pet ---------- */
 function CadastrarPet({ p }) {
-  const { st, user, mut, toast, tab } = useApp();
+  const { st, user, mut, toast, tab, acao } = useApp();
   const orig = p && p.petId && petById(st, p.petId);
   const ed = orig && orig.tutorId === user.id ? orig : null;
   const [f, setF] = useState(() => ed ? { id: ed.id, nome: ed.nome, especie: ed.especie, raca: ed.raca, sexo: ed.sexo, nascimento: ed.nascimento, foto: ed.foto } : { nome: "", especie: "Cão", raca: "", sexo: "Macho", nascimento: "", foto: null });
@@ -125,7 +125,7 @@ function CadastrarPet({ p }) {
     if (f.nascimento && new Date(f.nascimento) > new Date()) x.nascimento = "A data não pode estar no futuro.";
     setE(x); if (Object.keys(x).length) return;
     run(async () => {
-      try { const p = mut((d) => A.cadastrarPet(d, f)); toast(ed ? `Dados ${doPet(p)} atualizados.` : `${p.nome} foi vinculado à sua conta. Número ${fmtCod(p.codigo)}.`); tab("inicio"); }
+      try { const p = await acao("cadastrarPet", f); toast(ed ? `Dados ${doPet(p)} atualizados.` : `${p.nome} foi vinculado à sua conta. Número ${fmtCod(p.codigo)}.`); tab("inicio"); }
       catch (er) { setGeral(er.message); }
     });
   };
@@ -180,10 +180,10 @@ function IdQr({ p }) {
 
 /* ---------- 09 / 33 Notificações ---------- */
 function Notifs() {
-  const { st, user, mut } = useApp();
+  const { st, user, mut, acao } = useApp();
   const [aba, setAba] = useState("todas");
   const [novas] = useState(() => new Set(st.notifs.filter((n) => n.para === user.id && !n.lida).map((n) => n.id)));
-  useEffect(() => { mut((d) => A.lerNotifs(d, user.id)); }, []);
+  useEffect(() => { acao("lerNotifs", user.id).catch(() => {}); }, []);
   const acesso = ["solicitacao", "autorizado", "recusado", "revogado", "liberado"];
   const lista = st.notifs.filter((n) => n.para === user.id && (aba === "todas" || acesso.includes(n.tipo))).sort((a, b) => b.data.localeCompare(a.data));
   const vet = ehVet(user);
@@ -258,14 +258,14 @@ function NotifCard({ n, nova }) {
 
 /* ---------- 10 Autorizar ---------- */
 function Autorizar({ p }) {
-  const { st, user, mut, toast, goBack, replace } = useApp();
+  const { st, user, mut, toast, goBack, replace, acao } = useApp();
   const [busy, run] = useBusy(); const [qual, setQual] = useState(null);
   const s = st.solicitacoes.find((x) => x.id === p.sid);
   const pet = s && petById(st, s.petId);
   if (!s || !pet || pet.tutorId !== user.id) return html`<div className="scr"><${Top} back /><${Empty} icon="vet" title="Solicitação não encontrada">Ela pode ter sido cancelada pelo profissional.<//></div>`;
   const v = userById(st, s.vetId);
   const decidir = (ok) => { setQual(ok); run(async () => {
-    try { mut((d) => A.decidir(d, s.id, ok)); toast(ok ? `Acesso de ${v.nome} autorizado para ${pet.nome}.` : `Você recusou o acesso de ${v.nome}.`); replace("acessos", { petId: pet.id, aba: ok ? "ativos" : "pendentes" }); }
+    try { await acao("decidir", s.id, ok); toast(ok ? `Acesso de ${v.nome} autorizado para ${pet.nome}.` : `Você recusou o acesso de ${v.nome}.`); replace("acessos", { petId: pet.id, aba: ok ? "ativos" : "pendentes" }); }
     catch (er) { toast(er.message); }
   }); };
   return html`<div className="scr">
@@ -353,7 +353,7 @@ function Atividade({ p }) {
 
 /* ---------- 34 Confirmar revogação ---------- */
 function Revogar({ p }) {
-  const { st, mut, toast, replace, goBack } = useApp();
+  const { st, mut, toast, replace, goBack, acao } = useApp();
   const [busy, run] = useBusy();
   const pet = usePet(p); if (!pet) return html`<${SemPetAqui} />`;
   const v = userById(st, p.vetId);
@@ -372,7 +372,7 @@ function Revogar({ p }) {
     <p className="small muted center">Uma nova autorização será necessária para retomar o acesso.</p>
     <div className="btns">
       <${Btn} onClick=${goBack} disabled=${busy}>Manter acesso<//>
-      <${Btn} v="danger" busy=${busy} onClick=${() => run(async () => { try { mut((d) => A.revogar(d, pet.id, v.id)); toast(`Acesso de ${v.nome} revogado.`); replace("acessos", { petId: pet.id }); } catch (er) { toast(er.message); } })}>Revogar acesso<//>
+      <${Btn} v="danger" busy=${busy} onClick=${() => run(async () => { try { await acao("revogar", pet.id, v.id); toast(`Acesso de ${v.nome} revogado.`); replace("acessos", { petId: pet.id }); } catch (er) { toast(er.message); } })}>Revogar acesso<//>
     </div>
   </div>`;
 }
@@ -495,7 +495,7 @@ function RegistroTutor({ p }) {
   </div>`;
 }
 function PlanoAlimentar({ r, pet, a, autorBox }) {
-  const { mut, toast, go } = useApp();
+  const { mut, toast, go, acao } = useApp();
   const [txt, setTxt] = useState(""); const [err, setErr] = useState(""); const [busy, run] = useBusy();
   const [chave] = useState(() => uid("k"));
   const c = atual(r).conteudo;
@@ -515,7 +515,7 @@ function PlanoAlimentar({ r, pet, a, autorBox }) {
     <div className="card green">
       <div className="row"><span style=${{ color: "var(--txt-succ)" }}><${I} n="notePen" s=${30} /></span><div><h3 style=${{ fontSize: 20 }}>Meu acompanhamento</h3><p className="small muted">Seu registro complementa o plano.</p></div></div>
       <${Field} id="alim-obs" label="Como foi a alimentação?" error=${err}><${Area} id="alim-obs" value=${txt} onChange=${(v) => { setTxt(v); setErr(""); }} placeholder="Conte ao veterinário" rows=${3} bad=${err} /><//>
-      <${Btn} v="secondary" icon="pencil" busy=${busy} onClick=${() => { if (!txt.trim()) { setErr("Escreva sua observação antes de registrar."); return; } run(async () => { try { mut((d) => A.novaNota(d, { chave, petId: pet.id, categoria: "Alimentação", titulo: "Acompanhamento da alimentação", descricao: txt, notificar: false, ref: r.id })); setTxt(""); toast("Observação registrada nas suas anotações."); } catch (er) { setErr(er.message); } }); }}>Registrar observação<//>
+      <${Btn} v="secondary" icon="pencil" busy=${busy} onClick=${() => { if (!txt.trim()) { setErr("Escreva sua observação antes de registrar."); return; } run(async () => { try { await acao("novaNota", { chave, petId: pet.id, categoria: "Alimentação", titulo: "Acompanhamento da alimentação", descricao: txt, notificar: false, ref: r.id }); setTxt(""); toast("Observação registrada nas suas anotações."); } catch (er) { setErr(er.message); } }); }}>Registrar observação<//>
     </div>
     <button className="btn btn-link" style=${{ alignSelf: "center" }} onClick=${() => go("versoes", { rid: r.id })}>Ver histórico de versões <${I} n="right" s=${18} /></button>
   </div>`;
@@ -600,7 +600,7 @@ function Rotina() {
 
 /* ---------- 17 Registrar cuidado ---------- */
 function RegistrarCuidado({ p }) {
-  const { st, user, mut, toast, goBack, go } = useApp();
+  const { st, user, mut, toast, goBack, go, acao } = useApp();
   const r = st.registros.find((x) => x.id === p.rid);
   const base = new Date(); if (p.off) { base.setDate(base.getDate() + p.off); base.setHours(8, 0, 0, 0); }
   const [res, setRes] = useState(""); const [dh, setDh] = useState(localInput(base)); const [obs, setObs] = useState("");
@@ -610,7 +610,7 @@ function RegistrarCuidado({ p }) {
   const salvar = () => {
     const x = {}; if (!res) x.res = "Escolha o que aconteceu."; if (!dh) x.dh = "Informe a data e o horário."; else if (new Date(dh) > new Date()) x.dh = "O horário não pode estar no futuro.";
     setErr(x); if (Object.keys(x).length) return;
-    run(async () => { try { mut((d) => A.registrarCuidado(d, { chave, petId: pet.id, registroId: r.id, resultado: res, dataHora: new Date(dh).toISOString(), obs })); toast("Registro salvo. A orientação veterinária não foi alterada."); goBack(); } catch (er) { setErr({ geral: er.message }); } });
+    run(async () => { try { await acao("registrarCuidado", { chave, petId: pet.id, registroId: r.id, resultado: res, dataHora: new Date(dh).toISOString(), obs }); toast("Registro salvo. A orientação veterinária não foi alterada."); goBack(); } catch (er) { setErr({ geral: er.message }); } });
   };
   return html`<div className="scr">
     <${Top} back logo="left" right=${html`<span></span>`} />
@@ -638,7 +638,7 @@ function RegistrarCuidado({ p }) {
 
 /* ---------- 18 Nova anotação ---------- */
 function NovaNota({ p }) {
-  const { st, mut, toast, goBack } = useApp();
+  const { st, mut, toast, goBack, acao } = useApp();
   const pet = usePet(p);
   const [f, setF] = useState({ categoria: p.ref ? "Saúde" : "Comportamento", titulo: "", descricao: "", anexo: null, notificar: false });
   const [err, setErr] = useState({}); const [busy, run] = useBusy(); const [chave] = useState(() => uid("k")); const fref = useRef(null);
@@ -648,7 +648,7 @@ function NovaNota({ p }) {
   const salvar = () => {
     const x = {}; if (!f.titulo.trim()) x.titulo = "Dê um título curto para a anotação."; if (!f.descricao.trim()) x.descricao = "Descreva o que você percebeu.";
     setErr(x); if (Object.keys(x).length) return;
-    run(async () => { try { mut((d) => A.novaNota(d, { ...f, chave, petId: pet.id, ref: p.ref })); toast(f.notificar && vets.length ? `Anotação salva. Avisamos ${vets.map((v) => v.nome).join(" e ")}.` : "Anotação salva. Nenhum veterinário foi avisado."); goBack(); } catch (er) { setErr({ geral: er.message }); } });
+    run(async () => { try { await acao("novaNota", { ...f, chave, petId: pet.id, ref: p.ref }); toast(f.notificar && vets.length ? `Anotação salva. Avisamos ${vets.map((v) => v.nome).join(" e ")}.` : "Anotação salva. Nenhum veterinário foi avisado."); goBack(); } catch (er) { setErr({ geral: er.message }); } });
   };
   return html`<div className="scr">
     <${Top} back right=${html`<span></span>`} />
@@ -676,7 +676,7 @@ function NovaNota({ p }) {
 
 /* ---------- 19 Perfil ---------- */
 function Perfil() {
-  const { user, go, mut, tab } = useApp();
+  const { user, go, mut, tab, acao } = useApp();
   return html`<div className="scr">
     <${Top} logo="left" bell />
     <${Title} t="Meu perfil" sub="Gerencie sua conta e preferências." />
@@ -690,7 +690,7 @@ function Perfil() {
     <${Row} icon="users" title="Veterinários autorizados" sub="Veja e gerencie os veterinários com acesso." onClick=${() => go("acessos")} />
     <${Row} icon="shield" title="Privacidade" sub="Controle seus dados e permissões." onClick=${() => go("privacidade")} />
     <${Row} icon="help" title="Ajuda" sub="Dúvidas e suporte." onClick=${() => go("ajuda")} />
-    <${Btn} v="secondary" icon="logout" onClick=${() => mut((d) => A.sair(d))}>Sair da conta<//>
+    <${Btn} v="secondary" icon="logout" onClick=${() => acao("sair").catch(() => {})}>Sair da conta<//>
   </div>`;
 }
 function MeusPets() {
@@ -723,13 +723,13 @@ function Conta() {
   </div>`;
 }
 function Prefs() {
-  const { user, mut } = useApp();
+  const { user, mut, acao, toast } = useApp();
   const pr = user.prefs || {};
   const it = [["acessos", "Pedidos e mudanças de acesso", "Quando um veterinário pedir acesso ou um vínculo mudar."], ["orientacoes", "Novas orientações", "Quando um veterinário publicar algo para seu pet."], ["rotina", "Lembretes da rotina", "Avisos sobre cuidados pendentes do dia."]];
   return html`<div className="scr">
     <${Top} back right=${html`<span></span>`} />
     <${Title} t="Notificações" sub="Escolha o que você quer receber." />
-    ${it.map(([k, t, s]) => html`<div key=${k} className="card tight row" style=${{ flexDirection: "row" }}><label htmlFor=${"pf-" + k} className="grow"><p style=${{ fontWeight: 800 }}>${t}</p><p className="small muted">${s}</p></label><${Toggle} id=${"pf-" + k} on=${pr[k] !== false} onChange=${(v) => mut((d) => A.prefs(d, k, v))} label=${t} /></div>`)}
+    ${it.map(([k, t, s]) => html`<div key=${k} className="card tight row" style=${{ flexDirection: "row" }}><label htmlFor=${"pf-" + k} className="grow"><p style=${{ fontWeight: 800 }}>${t}</p><p className="small muted">${s}</p></label><${Toggle} id=${"pf-" + k} on=${pr[k] !== false} onChange=${(v) => acao("prefs", k, v).catch((e) => toast(e.message))} label=${t} /></div>`)}
     <p className="meta center">Neste protótipo os avisos aparecem só dentro do app.</p>
   </div>`;
 }

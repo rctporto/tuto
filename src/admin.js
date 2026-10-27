@@ -39,7 +39,7 @@ function AInicio({ todos }) {
 function ACadastros() { return html`<${AInicio} todos />`; }
 
 function ADetalhe({ p }) {
-  const { st, mut, toast, goBack } = useApp();
+  const { st, mut, toast, goBack, acao } = useApp();
   const [recusando, setRecusando] = useState(false); const [motivo, setMotivo] = useState(""); const [err, setErr] = useState("");
   const [busy, run] = useBusy(); const [qual, setQual] = useState(null);
   const item = itensAdmin(st).find((i) => i.kind === p.kind && i.id === p.id);
@@ -47,7 +47,7 @@ function ADetalhe({ p }) {
   const pet = p.kind === "pet" ? petById(st, p.id) : null;
   const u = pet ? userById(st, pet.tutorId) : userById(st, p.id);
   const decidir = (ok) => { setErr(""); if (!ok && !motivo.trim()) { setErr("Explique o motivo da recusa. Ele será mostrado a quem fez o cadastro."); return; } setQual(ok); run(async () => {
-    try { mut((d) => A.decidirCadastro(d, p.kind, p.id, ok, motivo)); toast(ok ? `${item.titulo}: cadastro aprovado.` : `${item.titulo}: cadastro recusado.`); goBack(); }
+    try { await acao("decidirCadastro", p.kind, p.id, ok, motivo); toast(ok ? `${item.titulo}: cadastro aprovado.` : `${item.titulo}: cadastro recusado.`); goBack(); }
     catch (er) { setErr(er.message); }
   }); };
   const linhas = pet
@@ -77,19 +77,19 @@ function ADetalhe({ p }) {
   </div>`;
 }
 function APerfil() {
-  const { user, mut } = useApp();
+  const { user, mut, acao } = useApp();
   return html`<div className="scr">
     <${Top} logo="left" bell />
     <${Title} t="Meu perfil" sub="Conta de administrador." />
     <div className="card row" style=${{ flexDirection: "row" }}><span className="ic-tile round" style=${{ width: 72, height: 72 }}><${I} n="shieldC" s=${36} /></span><div><h2>${user.nome}</h2><p className="muted small">${user.email}</p></div></div>
     <${Note} icon="info">O administrador aprova ou recusa cadastros de tutores e veterinários. Não tem acesso a prontuários.<//>
-    <${Btn} v="secondary" icon="logout" onClick=${() => mut((d) => A.sair(d))}>Sair da conta<//>
+    <${Btn} v="secondary" icon="logout" onClick=${() => acao("sair").catch(() => {})}>Sair da conta<//>
   </div>`;
 }
 
 /* Conta de tutor aguardando aprovação */
 function ContaAnalise() {
-  const { user, mut } = useApp();
+  const { user, mut, acao } = useApp();
   const rec = user.aprovacao === "recusado";
   const passos = [
     { t: "Conta criada", s: "Recebemos seus dados.", e: "ok" },
@@ -107,7 +107,7 @@ function ContaAnalise() {
       </div>`)}
     </div></div>
     ${rec ? html`<${Note} t="e" icon="alert"><b>Motivo:</b> ${user.motivoRecusa}<//>` : html`<${Note} t="g" icon="mega"><b>Avisaremos quando a análise terminar.</b><br />Você receberá uma notificação aqui no app.<//>`}
-    <${Btn} v="secondary" onClick=${() => mut((d) => A.sair(d))}>Sair<//>
-    <p className="meta center">Protótipo: entre como Administrador no painel de demonstração para aprovar.</p>
+    <${Btn} v="secondary" onClick=${() => acao("sair").catch(() => {})}>Sair<//>
+    ${DEMO ? html`<p className="meta center">Protótipo: entre como Administrador no painel de demonstração para aprovar.</p>` : null}
   </div>`;
 }

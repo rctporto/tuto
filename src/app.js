@@ -1,6 +1,6 @@
 /* =================== APP =================== */
 const ROTAS = {
-  abertura: Abertura, boasVindas: BoasVindas, cadastro: Cadastro, login: Login, recuperar: Recuperar, confirmar: Confirmar, verificacao: Verificacao,
+  abertura: Abertura, novaSenha: NovaSenha, boasVindas: BoasVindas, cadastro: Cadastro, login: Login, recuperar: Recuperar, confirmar: Confirmar, verificacao: Verificacao,
   inicio: TInicio, saude: Saude, rotina: Rotina, perfil: Perfil,
   cadastrarPet: CadastrarPet, idqr: IdQr, notifs: Notifs, vNotifs: Notifs, autorizar: Autorizar, acessos: Acessos, atividade: Atividade, revogar: Revogar,
   registro: RegistroTutor, versoes: Versoes, documentos: Documentos, registrarCuidado: RegistrarCuidado, novaNota: NovaNota, nota: NotaView,
@@ -11,13 +11,11 @@ const ROTAS = {
   aInicio: AInicio, aCadastros: ACadastros, aDetalhe: ADetalhe, aPerfil: APerfil,
 };
 const NAV_A = [["aInicio", "Pendências", "clock"], ["aCadastros", "Cadastros", "users"], ["aPerfil", "Perfil", "user"]];
-const SEM_NAV = new Set(["abertura", "boasVindas", "cadastro", "login", "recuperar", "confirmar", "cadastrarPet", "registrarCuidado", "novaNota", "autorizar", "revogar", "novaOrientacao", "revisar", "editar", "solicitar"]);
+const SEM_NAV = new Set(["abertura", "novaSenha", "boasVindas", "cadastro", "login", "recuperar", "confirmar", "cadastrarPet", "registrarCuidado", "novaNota", "autorizar", "revogar", "novaOrientacao", "revisar", "editar", "solicitar"]);
 const NAV_T = [["inicio", "Início", "home"], ["saude", "Saúde", "heart"], ["rotina", "Rotina", "calendar"], ["perfil", "Perfil", "user"]];
 const NAV_V = [["vInicio", "Início", "home"], ["vPacientes", "Pacientes", "paw"], ["vSolicitacoes", "Solicitações", "file"], ["vPerfil", "Perfil", "user"]];
 const TAB_DE = { aDetalhe: "aInicio", idqr: "perfil", acessos: "perfil", meusPets: "perfil", conta: "perfil", prefs: "perfil", privacidade: "perfil", ajuda: "perfil", atividade: "perfil", passeios: "rotina", documentos: "saude", encontrar: "vSolicitacoes", aguardando: "vSolicitacoes", prontuario: "vPacientes", revogado: "vPacientes", vRegistro: "vPacientes" };
 const CHAVE = "tuto-prototipo-v6";
-// O painel de demonstração só aparece com ?demo no endereço.
-const DEMO = (() => { try { return new URLSearchParams(location.search).has("demo"); } catch (e) { return false; } })();
 function carregar() {
   // O link sempre abre na tela inicial (escolher cadastro); os dados salvos continuam.
   let s = null;
@@ -39,7 +37,7 @@ const TELAS = [
 const CENARIOS = [["zero", "Do zero", "Apaga os pets; Renato começa sem pet cadastrado."], ["inicial", "Pet recém-cadastrado", "Usa o seu pet: sem orientações, Dra. Ana Lima pediu acesso."], ["completa", "Jornada completa", "Usa o seu pet: Dra. Ana e Dr. Bruno com acesso, plano, receita e anotações."]];
 
 function App() {
-  const [st, setSt] = useState(carregar);
+  const [st, setSt] = useState(() => (SERVIDOR ? { ...vazio(), carregando: true } : carregar()));
   const stRef = useRef(st);
   const [stack, setStack] = useState(() => [{ r: homeDe(st), p: {} }]);
   const [toastMsg, setToast] = useState(null);
@@ -47,7 +45,55 @@ function App() {
   const segura = useRef(false);
   const tRef = useRef(null);
 
-  useEffect(() => { try { localStorage.setItem(CHAVE, JSON.stringify(st)); } catch (e) {} }, [st]);
+  useEffect(() => { if (!SERVIDOR) try { localStorage.setItem(CHAVE, JSON.stringify(st)); } catch (e) {} }, [st]);
+
+  // Modo servidor: o estado vem do Supabase, já filtrado pelo que a pessoa pode ver.
+  async function recarregar(sessao) {
+    const uidv = sessao ? sessao.user.id : null;
+    if (!uidv) { const d = vazio(); stRef.current = d; setSt(d); return d; }
+    const dados = await SRV.estado();
+    const prev = stRef.current.session;
+    const d = { ...vazio(), ...dados };
+    const meus = d.pets.filter((p) => p.tutorId === uidv);
+    const petId = prev && prev.uid === uidv && meus.some((p) => p.id === prev.petId) ? prev.petId : (meus[0] || {}).id || null;
+    d.session = { uid: uidv, petId };
+    stRef.current = d; setSt(d);
+    return d;
+  }
+  useEffect(() => {
+    if (!SERVIDOR) return;
+    let vivo = true;
+    const trocar = (d, antes) => { if ((antes && antes.uid) !== (d.session && d.session.uid)) setStack([{ r: homeDe(d), p: {} }]); };
+    sb.auth.getSession().then(async ({ data }) => {
+      const antes = stRef.current.session;
+      try { const d = await recarregar(data.session); if (vivo) trocar(d, antes); }
+      catch (e) { const d = vazio(); stRef.current = d; setSt(d); toast(e.message); }
+    });
+    const { data: sub } = sb.auth.onAuthStateChange((evt, sessao) => {
+      if (evt === "PASSWORD_RECOVERY") { setStack([{ r: "novaSenha", p: {} }]); return; }
+      if (evt === "SIGNED_IN" || evt === "SIGNED_OUT") {
+        const antes = stRef.current.session;
+        if ((antes && antes.uid) === (sessao && sessao.user.id)) return;
+        setTimeout(() => recarregar(sessao).then((d) => trocar(d, antes)).catch((e) => toast(e.message)), 0);
+      }
+    });
+    const atualizar = () => { if (stRef.current.session) sb.auth.getSession().then(({ data }) => data.session && recarregar(data.session)).catch(() => {}); };
+    const iv = setInterval(atualizar, 30000);
+    window.addEventListener("focus", atualizar);
+    return () => { vivo = false; sub.subscription.unsubscribe(); clearInterval(iv); window.removeEventListener("focus", atualizar); };
+  }, []);
+
+  // Toda operação passa por aqui: no protótipo roda no navegador; no servidor, no Supabase.
+  async function acao(nome, ...args) {
+    if (!SERVIDOR) return mut((d) => A[nome](d, ...args));
+    const r = await SRV[nome](...args);
+    if (nome === "buscarCodigo") { if (r && r.pet) mut((d) => { if (!petById(d, r.petId)) d.pets.push(r.pet); }); return r; }
+    if (["criarConta", "entrar", "sair", "recuperar", "novaSenha", "reenviarConfirmacao"].includes(nome)) return r;
+    const { data } = await sb.auth.getSession();
+    await recarregar(data.session);
+    if (nome === "cadastrarPet" && r && r.id) mut((d) => { d.session.petId = r.id; });
+    return r;
+  }
 
   const mut = (fn) => {
     const antes = stRef.current.session && stRef.current.session.uid;
@@ -157,7 +203,7 @@ function App() {
 
   const topo = stack[stack.length - 1];
   const Comp = ROTAS[topo.r] || TInicio;
-  const ctx = { st, user, mut, go, goBack, replace, tab, toast };
+  const ctx = { st, user, mut, acao, go, goBack, replace, tab, toast };
   const logado = !!user;
   const navItens = logado ? (user.tipo === "admin" ? NAV_A : ehVet(user) ? NAV_V : NAV_T) : null;
   const ativa = TAB_DE[topo.r] || stack[0].r;

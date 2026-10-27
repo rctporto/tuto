@@ -1,0 +1,10 @@
+{
+  "hosting": {
+    "site": "tuto-norio",
+    "public": ".",
+    "ignore": ["firebase.json", "**/.*", "src/**", "supabase/**", "build.py", "README.md", "assets/**", "**/node_modules/**"],
+    "headers": [
+      { "source": "**/*.@(html|js)", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
+    ]
+  }
+}

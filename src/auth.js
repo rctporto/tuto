@@ -1,7 +1,7 @@
 /* ---------- 01 / 21 Cadastro ---------- */
 const emailOk = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim());
 function Cadastro({ p }) {
-  const { mut, replace, go, toast } = useApp();
+  const { mut, replace, go, toast, acao } = useApp();
   const [tipo, setTipo] = useState(p.tipo || "tutor");
   const [f, setF] = useState({ nome: "", email: "", senha: "", crmv: "", uf: "", documento: null });
   const [e, setE] = useState({});
@@ -21,8 +21,9 @@ function Cadastro({ p }) {
   }
   const enviar = () => { setGeral(""); if (!validar()) return; run(async () => {
     try {
-      const u = mut((d) => A.criarConta(d, { ...f, tipo }));
-      if (vet) toast("Dados enviados para verificação.");
+      const u = await acao("criarConta", { ...f, tipo });
+      if (SERVIDOR) { if (u.precisaConfirmar) replace("confirmar", { email: u.email }); }
+      else if (vet) toast("Dados enviados para verificação.");
       else replace("confirmar", { email: u.email, uid: u.id });
     } catch (er) { setGeral(er.message); }
   }); };
@@ -92,12 +93,12 @@ function BoasVindas() {
 
 /* ---------- 02 Entrar ---------- */
 function Login() {
-  const { mut, replace, go } = useApp();
+  const { mut, replace, go, acao } = useApp();
   const [email, setEmail] = useState(""); const [senha, setSenha] = useState("");
   const [err, setErr] = useState(""); const [busy, run] = useBusy();
   const entrar = () => { setErr(""); if (!email || !senha) { setErr("Preencha e-mail e senha."); return; } run(async () => {
     try {
-      const r = mut((d) => A.entrar(d, email, senha));
+      const r = await acao("entrar", email, senha);
       if (r.confirmar) replace("confirmar", { email: r.u.email, uid: r.u.id });
     } catch (er) { setErr(er.message); }
   }); };
@@ -123,16 +124,16 @@ function Login() {
 
 /* ---------- 03 Recuperar senha ---------- */
 function Recuperar() {
-  const { goBack } = useApp();
+  const { goBack, acao } = useApp();
   const [email, setEmail] = useState(""); const [err, setErr] = useState(""); const [ok, setOk] = useState(false);
   const [busy, run] = useBusy();
-  const enviar = () => { setErr(""); if (!emailOk(email)) { setErr("Informe um e-mail válido."); return; } run(async () => setOk(true)); };
+  const enviar = () => { setErr(""); if (!emailOk(email)) { setErr("Informe um e-mail válido."); return; } run(async () => { try { if (SERVIDOR) await acao("recuperar", email); setOk(true); } catch (er) { setErr(er.message); } }); };
   return html`<div className="scr">
     <${Top} back logo="none" right=${html`<span></span>`} />
     <div style=${{ display: "flex", justifyContent: "center" }}><${Logo} w=${170} /></div>
     <${Title} c t="Esqueceu sua senha?" sub="Vamos enviar um link para você criar uma nova." />
     ${ok
-      ? html`<${Note} t="g" icon="checkC"><b>Pedido recebido.</b> Se houver uma conta com este e-mail, o link chegará em instantes. Neste protótipo nenhum e-mail é enviado.<//>`
+      ? html`<${Note} t="g" icon="checkC"><b>Pedido recebido.</b> Se houver uma conta com este e-mail, o link chegará em instantes.${SERVIDOR ? "" : " Neste protótipo nenhum e-mail é enviado."}<//>`
       : html`<form className="stack-12" onSubmit=${(ev) => { ev.preventDefault(); enviar(); }} noValidate>
           <${Field} id="r-email" label="E-mail" error=${err}><${Inp} id="r-email" type="email" icon="mail" value=${email} onChange=${(v) => { setEmail(v); setErr(""); }} placeholder="voce@exemplo.com" bad=${err} auto="email" /><//>
           <${Btn} type="submit" busy=${busy}>Enviar link<//>
@@ -142,9 +143,26 @@ function Recuperar() {
   </div>`;
 }
 
+/* ---------- Nova senha (link de recuperação) ---------- */
+function NovaSenha() {
+  const { acao, toast, tab, user } = useApp();
+  const [senha, setSenha] = useState(""); const [err, setErr] = useState(""); const [busy, run] = useBusy();
+  const salvar = () => { setErr(""); if (senha.length < 8) { setErr("Use pelo menos 8 caracteres."); return; } run(async () => {
+    try { await acao("novaSenha", senha); toast("Senha alterada."); tab(homeDe({ session: user ? { uid: user.id } : null, users: user ? [user] : [] })); } catch (er) { setErr(er.message); }
+  }); };
+  return html`<div className="scr">
+    <div style=${{ display: "flex", justifyContent: "center", paddingTop: 24 }}><${Logo} w=${170} /></div>
+    <${Title} c t="Crie uma nova senha" sub="Escolha a senha que você vai usar para entrar." />
+    <form className="stack-12" onSubmit=${(ev) => { ev.preventDefault(); salvar(); }} noValidate>
+      <${Field} id="n-senha" label="Nova senha" error=${err} help="Mínimo de 8 caracteres."><${Inp} id="n-senha" type="password" icon="lock" value=${senha} onChange=${(v) => { setSenha(v); setErr(""); }} auto="new-password" bad=${err} /><//>
+      <${Btn} type="submit" busy=${busy}>Salvar nova senha<//>
+    </form>
+  </div>`;
+}
+
 /* ---------- 04 Confirmar e-mail ---------- */
 function Confirmar({ p }) {
-  const { mut, toast, replace, st } = useApp();
+  const { mut, toast, replace, st, acao } = useApp();
   const [busy, run] = useBusy();
   const uidc = p.uid || st.pendenteConfirmacao;
   return html`<div className="scr">
@@ -153,22 +171,25 @@ function Confirmar({ p }) {
       <span style=${{ width: 150, height: 150, borderRadius: "50%", background: "var(--menta)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--roxo)" }}><${I} n="mail" s=${72} sw=${1.8} /></span>
     </div>
     <${Title} c t=${html`<span className="purple">Confirme seu e-mail</span>`} sub=${`Enviamos um link para ${p.email || "o e-mail informado"}. Abra a mensagem para continuar.`} />
-    <${Btn} busy=${busy} onClick=${() => run(async () => { try { mut((d) => A.confirmarEmail(d, uidc)); toast("E-mail confirmado. Boas-vindas ao tutô!"); } catch (er) { toast(er.message); } })}>Já confirmei meu e-mail<//>
-    <p className="meta center">Protótipo: o botão acima simula a abertura do link de confirmação.</p>
-    <button className="btn btn-link" style=${{ alignSelf: "center" }} onClick=${() => toast("Mensagem reenviada (simulado).")}>Reenviar mensagem</button>
+    ${SERVIDOR
+      ? html`<${Btn} onClick=${() => replace("login")}>Já confirmei, quero entrar<//>
+        <button className="btn btn-link" style=${{ alignSelf: "center" }} onClick=${() => run(async () => { try { await acao("reenviarConfirmacao", p.email); toast("Enviamos a mensagem de novo."); } catch (er) { toast(er.message); } })}>Reenviar mensagem</button>`
+      : html`<${Btn} busy=${busy} onClick=${() => run(async () => { try { await acao("confirmarEmail", uidc); toast("E-mail confirmado. Boas-vindas ao tutô!"); } catch (er) { toast(er.message); } })}>Já confirmei meu e-mail<//>
+        <p className="meta center">Protótipo: o botão acima simula a abertura do link de confirmação.</p>
+        <button className="btn btn-link" style=${{ alignSelf: "center" }} onClick=${() => toast("Mensagem reenviada (simulado).")}>Reenviar mensagem</button>`}
     <button className="btn btn-link" style=${{ alignSelf: "center" }} onClick=${() => replace("cadastro", { tipo: "tutor" })}>Corrigir e-mail</button>
   </div>`;
 }
 
 /* ---------- 22 Verificação pendente ---------- */
 function Verificacao() {
-  const { user, mut, toast, go } = useApp();
+  const { user, mut, toast, go, acao } = useApp();
   if (user.verificacao === "recusado") return html`<div className="scr">
     <${Top} logo="left" bell />
     <div style=${{ display: "flex", justifyContent: "center" }}><span style=${{ width: 140, height: 140, borderRadius: "50%", background: "var(--err-bg)", color: "var(--err)", display: "flex", alignItems: "center", justifyContent: "center" }}><${I} n="alert" s=${64} sw=${1.8} /></span></div>
     <${Title} c t="Cadastro não aprovado" sub="O administrador não aprovou seu cadastro profissional." />
     <${Note} t="e" icon="alert"><b>Motivo:</b> ${user.motivoRecusa}<//>
-    <${Btn} v="secondary" onClick=${() => mut((d) => A.sair(d))}>Sair<//>
+    <${Btn} v="secondary" onClick=${() => acao("sair").catch(() => {})}>Sair<//>
   </div>`;
   const [ver, setVer] = useState(false);
   const st3 = [
@@ -194,7 +215,7 @@ function Verificacao() {
         <div className="k">Documento</div><div className="v">${user.documento ? user.documento.nome : "Não anexado"}</div>
       </div></div>` : null}
     <${Btn} iconR=${ver ? null : "right"} onClick=${() => setVer(!ver)}>${ver ? "Ocultar dados enviados" : "Ver dados enviados"}<//>
-    <${Btn} v="secondary" onClick=${() => mut((d) => A.sair(d))}>Sair<//>
-    <p className="meta center">Protótipo: entre como Administrador no painel de demonstração para aprovar.</p>
+    <${Btn} v="secondary" onClick=${() => acao("sair").catch(() => {})}>Sair<//>
+    ${DEMO ? html`<p className="meta center">Protótipo: entre como Administrador no painel de demonstração para aprovar.</p>` : null}
   </div>`;
 }
