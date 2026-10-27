@@ -4,7 +4,7 @@ Protótipo navegável da plataforma tutô: tutor e veterinário com conta por e-
 
 Nesta etapa o site é estático (GitHub Pages). Login, e-mail e banco de dados são **simulados** e os dados ficam só no navegador de cada pessoa. A próxima etapa liga o site ao **Supabase** para login, banco de dados e regras de acesso reais, como no BugLab.
 
-Contas de demonstração (senha `tuto1234`): `renato@exemplo.com` (tutor), `ana@exemplo.com` (veterinária), `admin@exemplo.com` (administrador). O painel "Demonstração" ao lado permite trocar de usuário e abrir qualquer uma das 34 telas de referência.
+Contas de demonstração (senha `tuto1234`): `renato@exemplo.com` (tutor), `ana@exemplo.com` (veterinária), `admin@exemplo.com` (administrador). Com `?demo` no fim do endereço (https://rctporto.github.io/tuto/?demo) aparece o painel "Demonstração", que permite trocar de usuário e abrir qualquer uma das 34 telas de referência.
 
 ## Arquivos
 

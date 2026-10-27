@@ -102,7 +102,7 @@ function Login() {
       <${Btn} type="submit" busy=${busy}>Entrar<//>
     </form>
     <p className="center small">Ainda não tem conta? <button className="btn btn-link" style=${{ display: "inline" }} onClick=${() => go("boasVindas")}>Cadastre-se</button></p>
-    <p className="center meta">Demonstração: renato@, ana@ ou admin@exemplo.com, senha tuto1234</p>
+    ${DEMO ? html`<p className="center meta">Demonstração: renato@, ana@ ou admin@exemplo.com, senha tuto1234</p>`: null}
     <div className="login-wave" aria-hidden="true">
       <img src=${SYM} style=${{ width: 90, left: 24, top: 40 }} alt="" /><img src=${SYM} style=${{ width: 54, left: "45%", top: 78 }} alt="" /><img src=${SYM} style=${{ width: 100, right: 10, top: 90 }} alt="" />
     </div>

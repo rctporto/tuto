@@ -16,6 +16,8 @@ const NAV_T = [["inicio", "Início", "home"], ["saude", "Saúde", "heart"], ["ro
 const NAV_V = [["vInicio", "Início", "home"], ["vPacientes", "Pacientes", "paw"], ["vSolicitacoes", "Solicitações", "file"], ["vPerfil", "Perfil", "user"]];
 const TAB_DE = { aDetalhe: "aInicio", idqr: "perfil", acessos: "perfil", meusPets: "perfil", conta: "perfil", prefs: "perfil", privacidade: "perfil", ajuda: "perfil", atividade: "perfil", passeios: "rotina", documentos: "saude", encontrar: "vSolicitacoes", aguardando: "vSolicitacoes", prontuario: "vPacientes", revogado: "vPacientes", vRegistro: "vPacientes" };
 const CHAVE = "tuto-prototipo-v6";
+// O painel de demonstração só aparece com ?demo no endereço.
+const DEMO = (() => { try { return new URLSearchParams(location.search).has("demo"); } catch (e) { return false; } })();
 function carregar() {
   // O link sempre abre na tela inicial (escolher cadastro); os dados salvos continuam.
   let s = null;
@@ -169,9 +171,9 @@ function App() {
         ${mostraNav ? html`<nav className="nav" aria-label="Navegação principal" style=${{ gridTemplateColumns: `repeat(${navItens.length}, 1fr)` }}>${navItens.map(([r, t, ic]) => html`<button key=${r} className=${ativa === r ? "on" : ""} aria-current=${ativa === r ? "page" : undefined} onClick=${() => tab(r)}><${I} n=${ic} s=${26} sw=${ativa === r ? 2.4 : 2} />${t}</button>`)}</nav>` : null}
         ${toastMsg ? html`<div className=${"toast" + (mostraNav ? "" : " top")} role="status" aria-live="polite" key=${toastMsg.k}><${I} n="checkC" s=${20} /><span>${toastMsg.m}</span></div>` : null}
       </div>
-      <${Painel} aberto=${painel} fechar=${() => setPainel(false)} st=${st} user=${user} entrarComo=${entrarComo} aplicar=${aplicar} abrirTela=${abrirTela} mut=${mut} toast=${toast} />
+      ${DEMO ? html`<${Painel} aberto=${painel} fechar=${() => setPainel(false)} st=${st} user=${user} entrarComo=${entrarComo} aplicar=${aplicar} abrirTela=${abrirTela} mut=${mut} toast=${toast} />
       ${painel ? html`<div className="scrim" onClick=${() => setPainel(false)}></div>` : null}
-      <button className="chip demo-fab" onClick=${() => setPainel(true)} aria-label="Abrir painel de demonstração"><${I} n="users" s=${18} />Demo</button>
+      <button className="chip demo-fab" onClick=${() => setPainel(true)} aria-label="Abrir painel de demonstração"><${I} n="users" s=${18} />Demo</button>` : null}
     </div>
   <//>`;
 }
