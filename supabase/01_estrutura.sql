@@ -612,3 +612,25 @@ begin
     end if;
   end loop;
 end $$;
+
+-- ---------------------------------------------------------------------
+-- 8. Contas criadas antes deste script: cria o perfil que faltou
+-- ---------------------------------------------------------------------
+
+insert into public.perfis (id, tipo, nome, email, crmv, uf, titulo)
+select u.id,
+       case when u.raw_user_meta_data->>'tipo' = 'vet' then 'vet' else 'tutor' end,
+       coalesce(nullif(trim(u.raw_user_meta_data->>'nome'), ''), split_part(u.email, '@', 1)),
+       lower(u.email),
+       case when u.raw_user_meta_data->>'tipo' = 'vet' then nullif(trim(u.raw_user_meta_data->>'crmv'), '') end,
+       case when u.raw_user_meta_data->>'tipo' = 'vet' then nullif(u.raw_user_meta_data->>'uf', '') end,
+       case when u.raw_user_meta_data->>'tipo' = 'vet' then 'Médico(a)-veterinário(a)' end
+from auth.users u
+where not exists (select 1 from public.perfis p where p.id = u.id);
+
+-- Pede ao Supabase para reconhecer as funções novas na hora
+notify pgrst, 'reload schema';
+
+-- Conferência: deve mostrar 1 linha com "estado" e o total de perfis
+select (select count(*) from pg_proc where proname = 'estado' and pronamespace = 'public'::regnamespace) as funcao_estado,
+       (select count(*) from public.perfis) as perfis;
