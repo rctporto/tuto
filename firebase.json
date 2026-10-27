@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "tuto",
+    "site": "tutopet",
     "public": ".",
     "ignore": ["firebase.json", "**/.*", "src/**", "supabase/**", "build.py", "README.md", "assets/**", "**/node_modules/**"],
     "headers": [
