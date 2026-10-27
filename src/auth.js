@@ -55,6 +55,18 @@ function Cadastro({ p }) {
   </div>`;
 }
 
+/* ---------- Abertura: só o logo ---------- */
+let aberturaVista = false;
+function Abertura() {
+  const { replace } = useApp();
+  const seguir = () => { aberturaVista = true; replace("boasVindas"); };
+  useEffect(() => { const t = setTimeout(seguir, 2000); return () => clearTimeout(t); }, []);
+  return html`<button type="button" className="scr clickable" onClick=${seguir} aria-label="Entrar no tutô"
+      style=${{ alignItems: "center", justifyContent: "center", background: "var(--branco)", padding: 0, filter: "none" }}>
+    <${Logo} w=${210} />
+  </button>`;
+}
+
 /* ---------- Tela inicial: escolher cadastro ---------- */
 function BoasVindas() {
   const { go } = useApp();

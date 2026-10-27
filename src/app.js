@@ -1,6 +1,6 @@
 /* =================== APP =================== */
 const ROTAS = {
-  boasVindas: BoasVindas, cadastro: Cadastro, login: Login, recuperar: Recuperar, confirmar: Confirmar, verificacao: Verificacao,
+  abertura: Abertura, boasVindas: BoasVindas, cadastro: Cadastro, login: Login, recuperar: Recuperar, confirmar: Confirmar, verificacao: Verificacao,
   inicio: TInicio, saude: Saude, rotina: Rotina, perfil: Perfil,
   cadastrarPet: CadastrarPet, idqr: IdQr, notifs: Notifs, vNotifs: Notifs, autorizar: Autorizar, acessos: Acessos, atividade: Atividade, revogar: Revogar,
   registro: RegistroTutor, versoes: Versoes, documentos: Documentos, registrarCuidado: RegistrarCuidado, novaNota: NovaNota, nota: NotaView,
@@ -11,7 +11,7 @@ const ROTAS = {
   aInicio: AInicio, aCadastros: ACadastros, aDetalhe: ADetalhe, aPerfil: APerfil,
 };
 const NAV_A = [["aInicio", "Pendências", "clock"], ["aCadastros", "Cadastros", "users"], ["aPerfil", "Perfil", "user"]];
-const SEM_NAV = new Set(["boasVindas", "cadastro", "login", "recuperar", "confirmar", "cadastrarPet", "registrarCuidado", "novaNota", "autorizar", "revogar", "novaOrientacao", "revisar", "editar", "solicitar"]);
+const SEM_NAV = new Set(["abertura", "boasVindas", "cadastro", "login", "recuperar", "confirmar", "cadastrarPet", "registrarCuidado", "novaNota", "autorizar", "revogar", "novaOrientacao", "revisar", "editar", "solicitar"]);
 const NAV_T = [["inicio", "Início", "home"], ["saude", "Saúde", "heart"], ["rotina", "Rotina", "calendar"], ["perfil", "Perfil", "user"]];
 const NAV_V = [["vInicio", "Início", "home"], ["vPacientes", "Pacientes", "paw"], ["vSolicitacoes", "Solicitações", "file"], ["vPerfil", "Perfil", "user"]];
 const TAB_DE = { aDetalhe: "aInicio", idqr: "perfil", acessos: "perfil", meusPets: "perfil", conta: "perfil", prefs: "perfil", privacidade: "perfil", ajuda: "perfil", atividade: "perfil", passeios: "rotina", documentos: "saude", encontrar: "vSolicitacoes", aguardando: "vSolicitacoes", prontuario: "vPacientes", revogado: "vPacientes", vRegistro: "vPacientes" };
@@ -25,7 +25,7 @@ function carregar() {
   s = s || cenario("zero");
   return { ...s, session: null };
 }
-function homeDe(s) { const u = s.session && userById(s, s.session.uid); return !u ? "boasVindas" : u.tipo === "admin" ? "aInicio" : ehVet(u) ? "vInicio" : "inicio"; }
+function homeDe(s) { const u = s.session && userById(s, s.session.uid); return !u ? (aberturaVista ? "boasVindas" : "abertura") : u.tipo === "admin" ? "aInicio" : ehVet(u) ? "vInicio" : "inicio"; }
 
 const TELAS = [
   [1, "Cadastro do tutor", "T"], [2, "Entrar na conta", "T"], [3, "Recuperar senha", "T"], [4, "Confirmar e-mail", "T"], [5, "Primeiro acesso sem pet", "T"],
