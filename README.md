@@ -48,7 +48,7 @@ update public.perfis set tipo = 'admin', aprovacao = 'aprovado' where email = 's
 A partir daí, as novas contas aparecem em **Pendências** para esse administrador.
 
 ### 3. Firebase Hosting (Nório)
-1. No console do Firebase do projeto da Nório: **Hosting → Adicionar outro site** → `tuto`.
+1. No console do Firebase do projeto da Nório: **Hosting → Adicionar outro site** → `tutopet`.
 2. No seu computador, dentro da pasta deste repositório: `firebase deploy --only hosting --project norio-pd-os`
 3. O site fica em <https://tutopet.web.app>. Só a hospedagem é Firebase: o login e o banco continuam no Supabase.
 
