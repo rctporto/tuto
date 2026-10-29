@@ -212,10 +212,10 @@ function App() {
   const unread = user && st.notifs.some((n) => n.para === user.id && !n.lida);
 
   return html`<${Ctx.Provider} value=${ctx}>
-    <div className="stage">
-      <div className="phone" aria-label="Aplicativo tutô">
+    <div className=${"stage" + (DEMO ? "" : " web")}>
+      <div className=${"phone " + (mostraNav ? "com-nav" : "sem-nav")} aria-label="Aplicativo tutô">
         <${Comp} key=${stack.length + ":" + topo.r + ":" + JSON.stringify(topo.p)} p=${topo.p || {}} />
-        ${mostraNav ? html`<nav className="nav" aria-label="Navegação principal" style=${{ gridTemplateColumns: `repeat(${navItens.length}, 1fr)` }}>${navItens.map(([r, t, ic]) => html`<button key=${r} className=${ativa === r ? "on" : ""} aria-current=${ativa === r ? "page" : undefined} onClick=${() => tab(r)}><${I} n=${ic} s=${26} sw=${ativa === r ? 2.4 : 2} />${t}</button>`)}</nav>` : null}
+        ${mostraNav ? html`<nav className="nav" aria-label="Navegação principal" style=${{ gridTemplateColumns: `repeat(${navItens.length}, 1fr)` }}><div className="nav-logo"><${Logo} w=${120} /></div>${navItens.map(([r, t, ic]) => html`<button key=${r} className=${ativa === r ? "on" : ""} aria-current=${ativa === r ? "page" : undefined} onClick=${() => tab(r)}><${I} n=${ic} s=${26} sw=${ativa === r ? 2.4 : 2} />${t}</button>`)}</nav>` : null}
         ${toastMsg ? html`<div className=${"toast" + (mostraNav ? "" : " top")} role="status" aria-live="polite" key=${toastMsg.k}><${I} n="checkC" s=${20} /><span>${toastMsg.m}</span></div>` : null}
       </div>
       ${DEMO ? html`<${Painel} aberto=${painel} fechar=${() => setPainel(false)} st=${st} user=${user} entrarComo=${entrarComo} aplicar=${aplicar} abrirTela=${abrirTela} mut=${mut} toast=${toast} />
